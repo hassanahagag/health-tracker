@@ -3,8 +3,6 @@ export default async function handler(req, res) {
   
   try {
     let foodDescription = req.body.foodDescription || 'meal';
-    
-    // Extract food name if full prompt was sent
     const match = foodDescription.match(/The user ate: "([^"]+)"/);
     if (match) foodDescription = match[1];
 
@@ -14,39 +12,34 @@ export default async function handler(req, res) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          contents: [{
-            parts: [{
-              text: `You are a nutrition database. Return ONLY a JSON object with nutrition for: "${foodDescription}"
-Format: {"calories":320,"protein":13,"carbs":48,"fat":9,"description":"foul sandwich"}
-Numbers only, no units. Accurate Egyptian food portions if applicable.`
-            }]
-          }]
+          contents: [{ parts: [{ text: `Nutrition for "${foodDescription}". JSON only: {"calories":320,"protein":13,"carbs":48,"fat":9,"description":"foul sandwich"}` }] }]
         })
       }
     );
     
     const data = await geminiRes.json();
     const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
-    
-    // Find JSON in response
     const start = text.indexOf('{');
     const end = text.lastIndexOf('}');
     
     if (start !== -1 && end !== -1) {
       const parsed = JSON.parse(text.slice(start, end + 1));
-      if (parsed.calories) {
-        return res.status(200).json(parsed);
-      }
+      return res.status(200).json({
+        calories: Number(parsed.calories) || 350,
+        protein: Number(parsed.protein) || 15,
+        carbs: Number(parsed.carbs) || 45,
+        fat: Number(parsed.fat) || 10,
+        description: parsed.description || foodDescription
+      });
     }
     
-    // If parsing failed, return debug info
+    // Return raw text so we can see what Gemini sent
     return res.status(200).json({ 
       calories: 350, protein: 15, carbs: 45, fat: 10, 
-      description: foodDescription,
-      debug: text.slice(0, 300)
+      description: foodDescription + ' [raw:' + text.slice(0, 100) + ']'
     });
     
   } catch (err) {
-    return res.status(200).json({ calories: 350, protein: 15, carbs: 45, fat: 10, description: 'meal' });
+    return res.status(200).json({ calories: 350, protein: 15, carbs: 45, fat: 10, description: 'error:' + err.message });
   }
 }
