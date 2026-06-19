@@ -12,34 +12,23 @@ export default async function handler(req, res) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          contents: [{ parts: [{ text: `Give nutrition estimate for: ${food}\nRespond with ONLY this JSON, no other text:\n{"calories": 320, "protein": 13, "carbs": 48, "fat": 9, "description": "${food}"}` }] }]
+          contents: [{ parts: [{ text: `Nutrition for: ${food}. JSON only: {"calories": 320, "protein": 13, "carbs": 48, "fat": 9, "description": "foul sandwich"}` }] }]
         })
       }
     );
     
     const data = await geminiRes.json();
-    const text = (data.candidates?.[0]?.content?.parts?.[0]?.text || '').trim();
     
-    // Try to extract numbers with regex as fallback
-    const cal = text.match(/"calories"\s*:\s*(\d+)/)?.[1];
-    const pro = text.match(/"protein"\s*:\s*(\d+)/)?.[1];
-    const carb = text.match(/"carbs"\s*:\s*(\d+)/)?.[1];
-    const fat = text.match(/"fat"\s*:\s*(\d+)/)?.[1];
-    const desc = text.match(/"description"\s*:\s*"([^"]+)"/)?.[1];
-    
-    if (cal) {
-      return res.status(200).json({
-        calories: parseInt(cal),
-        protein: parseInt(pro || 15),
-        carbs: parseInt(carb || 45),
-        fat: parseInt(fat || 10),
-        description: desc || food
-      });
-    }
-    
-    return res.status(200).json({ calories: 350, protein: 15, carbs: 45, fat: 10, description: food });
+    // Return the FULL Gemini response so we can debug
+    return res.status(200).json({
+      calories: 999,
+      protein: 99,
+      carbs: 99,
+      fat: 99,
+      description: JSON.stringify(data).slice(0, 500)
+    });
     
   } catch (err) {
-    return res.status(200).json({ calories: 350, protein: 15, carbs: 45, fat: 10, description: 'meal' });
+    return res.status(200).json({ calories: 888, protein: 88, carbs: 88, fat: 88, description: err.message });
   }
 }
