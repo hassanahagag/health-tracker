@@ -417,22 +417,31 @@ const extractJson = (text) => {
 // surfaces an uncatchable full-screen error in the published sandbox. Any failure →
 // throw "network-unavailable", and callers fall back to local estimation safely.
 const callClaude = async (content) => {
+  if (Array.isArray(content)) throw new Error("network-unavailable");
   let response;
   try {
-    response = await fetch("https://api.anthropic.com/v1/messages", {
+    response = await fetch("/api/analyze-food", {
       method: "POST",
-      headers: { "Content-Type": "application/json", "anthropic-dangerous-direct-browser-access": "true" },
-      body: JSON.stringify({ model: "claude-sonnet-4-6", max_tokens: 1000, messages: [{ role: "user", content }] }),
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        foodDescription: content,
+        userProfile: "37yo male, 90kg, target 80kg, 1750 kcal/day, 140g protein, fatty liver disease, high LDL, urticaria. Eats Egyptian foods (foul, taameya, koshari, baladi bread) and international meals.",
+      }),
     });
-  } catch (netErr) {
-    throw new Error("network-unavailable"); // CORS / sandbox / offline — caller uses local estimate
-  }
+  } catch (netErr) { throw new Error("network-unavailable"); }
   if (!response.ok) throw new Error(`API status ${response.status}`);
   const data = await response.json();
-  if (data.error) throw new Error(data.error.message || "API error");
-  if (!data.content || !Array.isArray(data.content)) throw new Error("Empty API response");
-  const text = data.content.map((i) => (i.type === "text" ? i.text : "")).filter(Boolean).join("\n");
-  return extractJson(text);
+  if (data.error) throw new Error(data.error || "API error");
+  const name = data.description || (content.length > 40 ? content.slice(0, 40) + "…" : content);
+  return {
+    items: [{ name, portion: "1 serving" }],
+    totalName: name,
+    calories: Math.round(data.calories || 0),
+    protein: Math.round(data.protein || 0),
+    carbs: Math.round(data.carbs || 0),
+    fat: Math.round(data.fat || 0),
+    flagged: false, flagReason: null, healthNote: null,
+  };
 };
 
 // ============ MAIN APP ============
