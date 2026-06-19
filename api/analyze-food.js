@@ -19,6 +19,11 @@ export default async function handler(req, res) {
     
     const data = await geminiRes.json();
     const text = (data.candidates?.[0]?.content?.parts?.[0]?.text || '').trim();
+    const errorMsg = data.error?.message || '';
+    
+    if (errorMsg) {
+      return res.status(200).json({ calories: 350, protein: 15, carbs: 45, fat: 10, description: food });
+    }
 
     const cal = text.match(/"calories"\s*:\s*(\d+)/)?.[1];
     const pro = text.match(/"protein"\s*:\s*(\d+)/)?.[1];
@@ -36,4 +41,9 @@ export default async function handler(req, res) {
       });
     }
     
-    return res.status(200).json({ calories: 350,
+    return res.status(200).json({ calories: 350, protein: 15, carbs: 45, fat: 10, description: food });
+    
+  } catch (err) {
+    return res.status(200).json({ calories: 350, protein: 15, carbs: 45, fat: 10, description: 'meal' });
+  }
+}
